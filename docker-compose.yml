@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # Service สำหรับฐานข้อมูล MySQL
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql-container
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password1
+      MYSQL_DATABASE: hospital_db
+      MYSQL_USER: my_user
+      MYSQL_PASSWORD: password2
+    volumes:
+      - ./hospital_db.sql:/docker-entrypoint-initdb.d/hospital_db.sql
+      - mysql_data:/var/lib/mysql  # เปลี่ยนจาก mysql-data เป็น mysql_data
+
+  # Service สำหรับ phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-container
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql-db  # ต้องตรงกับชื่อ service ของ MySQL
+      PMA_USER: root      # เพิ่ม username สำหรับ phpMyAdmin
+      PMA_PASSWORD: password1  # ต้องตรงกับ MYSQL_ROOT_PASSWORD
+    depends_on:
+      - mysql-db
+
+volumes:
+  mysql_data:  # เปลี่ยนจาก mysql-data เป็น mysql_data
