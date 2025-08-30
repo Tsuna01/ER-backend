@@ -1,17 +1,18 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { DoctorModule } from './doctor/doctor.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
+import { DoctorModule } from './doctor/doctor.module';
 import { DatabaseModule } from './database/database.module';
 
 
 
 
+
 @Module({
-  imports: [DoctorModule,
+  imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -28,6 +29,7 @@ import { DatabaseModule } from './database/database.module';
     }),
     AuthModule,
     DatabaseModule,
+    DoctorModule,
     
   ],
   controllers: [AppController,],

@@ -1,37 +1,27 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
-import { CreateDoctorDto } from './dto/create-doctor.dto';
-import { UpdateDoctorDto } from './dto/update-doctor.dto';
 
 @Controller('doctor')
 export class DoctorController {
-  constructor(private readonly doctorService: DoctorService) {}
+  constructor(private readonly doctorService: DoctorService) { }
 
-  @Post()
-  create(@Body() createDoctorDto: CreateDoctorDto) {
-    return this.doctorService.create(createDoctorDto);
+  @Post('/QualiForm')
+  async createQuali(@Body() data: any) {
+    return this.doctorService.createQuali(data);
   }
 
-  @Get('api')
-  findAll() {
-    return [
-      {id: 1 ,name: 'Dr. Smith', position : 'A10' , department: 'Cardiology' , }
-      ,{id: 2 ,name: 'Dr. Johnson', position : 'B20' , department: 'Neurology' , }
-    ];
+
+  @Post('/StaffForm')
+  async createStaffInfo(@Body() data: any) {
+    return this.doctorService.createStaffInfo(data);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.doctorService.findOne(+id);
+  @Post('/workx')
+  async createWorkx(@Body() data: any) {
+    return this.doctorService.createWorkx(data);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDoctorDto: UpdateDoctorDto) {
-    return this.doctorService.update(+id, updateDoctorDto);
-  }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.doctorService.remove(+id);
-  }
+
+
 }
