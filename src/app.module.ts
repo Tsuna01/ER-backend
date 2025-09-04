@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { DatabaseModule } from './database/database.module';
+import { EmployeeModule } from './employee/employee.module';
 
 
 
@@ -30,6 +31,7 @@ import { DatabaseModule } from './database/database.module';
     AuthModule,
     DatabaseModule,
     DoctorModule,
+    EmployeeModule,
     
   ],
   controllers: [AppController,],

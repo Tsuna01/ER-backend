@@ -11,7 +11,7 @@ export class DoctorService {
     await queryRunner.startTransaction();
 
     try {
-      // ✅ หา staff_id ล่าสุดจากตาราง staff
+      // หา staff_id ล่าสุดจากตาราง staff
       const [latestStaff] = await queryRunner.query(
         `SELECT staff_id FROM staff ORDER BY staff_id DESC LIMIT 1`
       );
@@ -22,7 +22,6 @@ export class DoctorService {
 
       const staffId = latestStaff.staff_id;
 
-      // ✅ insert qualification โดยไม่ใส่ other
       for (const edu of data.education) {
         await queryRunner.query(
           `INSERT INTO qualification (staff_id, qual_type, qual_date, institution)
@@ -82,39 +81,136 @@ export class DoctorService {
   }
 
   async createWorkx(data: any) {
-  const queryRunner = this.dataSource.createQueryRunner();
-  await queryRunner.connect();
-  await queryRunner.startTransaction();
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-  try {
-    // ⬇️ ดึง staff_id ล่าสุดจากตาราง staff
-    const [latestStaff] = await queryRunner.query(
-      `SELECT staff_id FROM staff ORDER BY staff_id DESC LIMIT 1`
-    );
+    try {
+      // ⬇️ ดึง staff_id ล่าสุดจากตาราง staff
+      const [latestStaff] = await queryRunner.query(
+        `SELECT staff_id FROM staff ORDER BY staff_id DESC LIMIT 1`
+      );
 
-    if (!latestStaff) {
-      throw new Error('No staff found. Please insert staff first.');
+      if (!latestStaff) {
+        throw new Error('No staff found. Please insert staff first.');
+      }
+
+      const staffId = latestStaff.staff_id;
+
+      // ⬇️ insert work experience โดยอ้างอิง staff คนล่าสุด
+      await queryRunner.query(
+        `INSERT INTO work_experience (staff_id, organization, position, start_date, end_date)
+       VALUES (?, ?, ?, ?, ?)`,
+        [staffId, data.organization, data.position, data.start_date, data.end_date],
+      );
+
+      await queryRunner.commitTransaction();
+      return { success: true, staffId };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      console.error('❌ SQL Error:', err);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async findUser() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+
+    try {
+      const result = await queryRunner.query(`
+      SELECT 
+        staff_id,
+        CONCAT(first_name, ' ', last_name) AS name,
+        position
+      FROM staff
+      WHERE staff_id IS NOT NULL 
+
+      ORDER BY staff_id ASC
+    `);
+
+      return result;
+    } catch (err) {
+      console.error('❌ SQL Error:', err);
+      throw err;
+    } finally {
+      await queryRunner.release(); // คืน connection
+    }
+  }
+
+  async search(filters: any) {
+    let query = `SELECT * FROM staff WHERE 1=1`;
+    const params: any[] = [];
+
+    if (filters.name) {
+      query += ` AND name LIKE ?`;
+      params.push(`%${filters.name}%`);
+    }
+    if (filters.position) {
+      query += ` AND position = ?`;
+      params.push(filters.position);
+    }
+    if (filters.experience) {
+      query += ` AND experience >= ?`;
+      params.push(filters.experience);
+    }
+    if (filters.location) {
+      query += ` AND location LIKE ?`;
+      params.push(`%${filters.location}%`);
+    }
+    if (filters.education) {
+      query += ` AND education = ?`;
+      params.push(filters.education);
     }
 
-    const staffId = latestStaff.staff_id;
+    const [rows] = await this.dataSource.query(query, params);
+    return rows;
+  }
 
-    // ⬇️ insert work experience โดยอ้างอิง staff คนล่าสุด
-    await queryRunner.query(
-      `INSERT INTO work_experience (staff_id, organization, position, start_date, end_date)
-       VALUES (?, ?, ?, ?, ?)`,
-      [staffId, data.organization, data.position, data.start_date, data.end_date],
+  async updateStaffAssignment(
+  staff_id: number,
+  ward_id: number,
+  start_date: string,
+  end_date: string,
+  shift_type: string,
+) {
+  try {
+    console.log('📡 updateStaffAssignment เริ่มทำงาน');
+    console.log('📊 ข้อมูลที่ใช้ query:', {
+      staff_id, ward_id, start_date, end_date, shift_type
+    });
+
+    const result = await this.dataSource.query(
+      `
+      UPDATE staff_assignment
+      SET ward_id = ?, start_date = ?, end_date = ?, shift_type = ?
+      WHERE staff_id = ?;
+      `,
+      [ward_id, start_date, end_date, shift_type, staff_id],
     );
 
-    await queryRunner.commitTransaction();
-    return { success: true, staffId };
-  } catch (err) {
-    await queryRunner.rollbackTransaction();
-    console.error('❌ SQL Error:', err);
-    throw err;
-  } finally {
-    await queryRunner.release();
+    if (!result || result.affectedRows === 0) {
+      throw new Error(`❗️ ไม่พบข้อมูลของ staff_id=${staff_id} ในฐานข้อมูล`);
+    }
+
+    return {
+      message: '✅ อัปเดตข้อมูลเรียบร้อย',
+      result,
+    };
+  } catch (error) {
+    console.error('🔥 ERROR ใน updateStaffAssignment:', error);
+    throw error;
   }
 }
+
+
+  async showinfoWard() {
+    const result = await this.dataSource.query(`SELECT * FROM staff_assignment;`)
+    return result;
+  }
+
 
 
 }
