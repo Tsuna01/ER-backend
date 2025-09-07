@@ -15,7 +15,7 @@ services:
       MYSQL_PASSWORD: password2
     volumes:
       - ./hospital_db.sql:/docker-entrypoint-initdb.d/hospital_db.sql
-      - mysql_data:/var/lib/mysql  # เปลี่ยนจาก mysql-data เป็น mysql_data
+      - mysql_data:/var/lib/mysql  
 
   # Service สำหรับ phpMyAdmin
   phpmyadmin:

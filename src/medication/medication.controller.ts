@@ -1,25 +1,25 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { MedicationService } from './medication.service';
-import { DataSource } from 'typeorm';
 
 @Controller('medications')
 export class MedicationController {
-  constructor(private readonly medicationService: MedicationService) {}
+  constructor(private readonly medicationService: MedicationService) { }
 
-  @Get()
-  showData(){
-    return this.medicationService.showDatadrug();
+
+  @Get('/api')
+  async showMed(){
+    return this.medicationService.fulluser();
   }
 
-  @Post()
-  setDrug(@Body() body: any) {
+  @Post('/from')
+  async createDrug(@Body() data: any) {
     return this.medicationService.createDrug(
-      body.patient_id,
-      body.item_id,
-      body.prescribes_by,
-      body.units_per_day,
-      body.start_date,
-      body.end_date
+      data.patient_id,
+      data.item_id,
+      data.prescribed_by,  
+      data.units_per_day,
+      data.start_date,
+      data.end_date,
     );
   }
 }

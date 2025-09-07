@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { DoctorModule } from './doctor/doctor.module';
-import { DatabaseModule } from './database/database.module';
 import { EmployeeModule } from './employee/employee.module';
+import { MedicationModule } from './medication/medication.module';
 
 
 
@@ -29,9 +29,10 @@ import { EmployeeModule } from './employee/employee.module';
       autoLoadEntities: false,
     }),
     AuthModule,
-    DatabaseModule,
     DoctorModule,
     EmployeeModule,
+    MedicationModule,
+
     
   ],
   controllers: [AppController,],

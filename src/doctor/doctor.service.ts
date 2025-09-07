@@ -11,27 +11,33 @@ export class DoctorService {
     await queryRunner.startTransaction();
 
     try {
-      // หา staff_id ล่าสุดจากตาราง staff
+      // หา staff_id ล่าสุด
       const [latestStaff] = await queryRunner.query(
         `SELECT staff_id FROM staff ORDER BY staff_id DESC LIMIT 1`
       );
 
       if (!latestStaff) {
-        throw new Error("No staff found. Please add staff first.");
+        throw new Error('No staff found. Please add staff first.');
       }
 
       const staffId = latestStaff.staff_id;
 
+      // ✅ Bulk insert ใช้ SQL เดียว
+      const placeholders = data.education.map(() => '(?, ?, ?, ?)').join(', ');
+      const params: any[] = [];
       for (const edu of data.education) {
-        await queryRunner.query(
-          `INSERT INTO qualification (staff_id, qual_type, qual_date, institution)
-         VALUES (?, ?, ?, ?)`,
-          [staffId, edu.qual_type, edu.qual_date || null, edu.institution || null],
-        );
+        params.push(staffId, edu.qual_type, edu.qual_date || null, edu.institution || null);
       }
 
+      const sql = `
+        INSERT INTO qualification (staff_id, qual_type, qual_date, institution)
+        VALUES ${placeholders}
+      `;
+
+      await queryRunner.query(sql, params);
+
       await queryRunner.commitTransaction();
-      return { success: true, staffId };
+      return { success: true, staffId, inserted: data.education.length };
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;

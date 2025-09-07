@@ -12,23 +12,18 @@ export class EmployeeService {
     await queryRunner.startTransaction();
 
     try {
-      //  Insert doctor 
-      const doctorResult = await queryRunner.query(
-        `INSERT INTO local_doctor (doctor_name, lo_last_name, lo_address_line, lo_phone)
-       VALUES (?, ?, ?, ?)`,
-        [
-          data.doctor.doctor_name,
-          data.doctor.lo_last_name,
-          data.doctor.lo_address_line,
-          data.doctor.lo_phone,
-        ],
-      );
-
-      const clinicNo = doctorResult.insertId;
 
       // Insert patient (อ้างอิง clinic_no)
       const patientResult = await queryRunner.query(
-        `INSERT INTO patient (first_name, last_name, date_of_birth, gender, address_line, phone, date_registered, clinic_no)
+        `INSERT INTO patient (
+        first_name, 
+        last_name, 
+        date_of_birth, 
+        gender, 
+        address_line, 
+        phone, 
+        date_registered, 
+        clinic_no)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.patient.first_name,
@@ -38,7 +33,7 @@ export class EmployeeService {
           data.patient.address_line,
           data.patient.phone,
           data.patient.date_registered,
-          clinicNo,
+          data.patient.clinic_no,
         ],
       );
 
@@ -58,7 +53,7 @@ export class EmployeeService {
       );
 
       await queryRunner.commitTransaction();
-      return { success: true, patientId, clinicNo };
+      return { success: true, patientId};
     } catch (err) {
       await queryRunner.rollbackTransaction();
       console.error(' Error register patient:', err);
