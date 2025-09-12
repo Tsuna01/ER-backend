@@ -1,35 +1,42 @@
 version: '3.8'
-
 services:
-  # Service สำหรับฐานข้อมูล MySQL
   mysql-db:
     image: mysql:8.0
     container_name: mysql-container
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
+    command: --skip-name-resolve
     environment:
       MYSQL_ROOT_PASSWORD: password1
       MYSQL_DATABASE: hospital_db
       MYSQL_USER: my_user
       MYSQL_PASSWORD: password2
     volumes:
-      - ./hospital_db.sql:/docker-entrypoint-initdb.d/hospital_db.sql
-      - mysql_data:/var/lib/mysql  
+      - mysql_data:/var/lib/mysql
+    networks: [dbnet]
+    ports:
+      - "3306:3306"           # <<<< ต้องมี
+    healthcheck:
+      test: ["CMD","mysqladmin","ping","-h","127.0.0.1","-uroot","-ppassword1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  # Service สำหรับ phpMyAdmin
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin-container
-    restart: unless-stopped
-    ports:
-      - "8080:80"
+    ports: ["8080:80"]
     environment:
-      PMA_HOST: mysql-db  # ต้องตรงกับชื่อ service ของ MySQL
-      PMA_USER: root      # เพิ่ม username สำหรับ phpMyAdmin
-      PMA_PASSWORD: password1  # ต้องตรงกับ MYSQL_ROOT_PASSWORD
+      PMA_HOST: mysql-db   # ใช้ชื่อ service (ไม่ใช่ container_name)
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: password1
+      # แนะนำให้ลบ PMA_USER/PMA_PASSWORD ออก เพื่อกรอกในหน้าเว็บได้หลาย user
     depends_on:
-      - mysql-db
+      mysql-db:
+        condition: service_healthy
+    networks: [dbnet]
 
 volumes:
-  mysql_data:  # เปลี่ยนจาก mysql-data เป็น mysql_data
+  mysql_data:
+
+networks:
+  dbnet: {}

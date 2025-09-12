@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Patch,Put} from '@nestjs/common';
 import { EmployeeService } from './employee.service';
 
 
@@ -28,9 +28,69 @@ export class EmployeeController {
     return this.employeeService.registerInpatient(data);
   }
 
+  @Post('/W')
+  async addWaitinglist(@Body() data: any) {
+    return this.employeeService.addWaitinglist(data);
+  }
+
+  @Get('W/api')
+  tableWaitingL() {
+    return this.employeeService.tableWaitingL();
+  }
+
+  @Put('W/update') // ✅ ให้ตรงกับ axios.put
+  async updateWaiting(@Body() body: any[]) {
+    return this.employeeService.upTablewaitingL(body);
+  }
+  
+  @Get('E/info')
+  AllPatient(){
+    return this.employeeService.AllPatient();
+  }
+
+  @Get('W/info')
+  AllPatientW(){
+    return this.employeeService.AllPatientW();
+  }
+
   @Get('U/api')
-  async getInpatients() {
-    return this.employeeService.showInpatients();
+  async listInpatients(
+    @Query('ward_id') wardId?: string,
+    @Query('limit') limit = '50',
+    @Query('offset') offset = '0',
+    // current=1 จะกรองเฉพาะที่ยังไม่จำหน่าย (actual_dis_date IS NULL)
+    @Query('current') current = '1',
+  ) {
+    return this.employeeService.searchInpatients({
+      wardId: wardId ? Number(wardId) : undefined,
+      limit: Number(limit),
+      offset: Number(offset),
+      current: current === '1',
+    });
+  }
+
+  @Get('U/info')
+  async TableBed(){
+    return this.employeeService.tableBed(); 
+  
+  }
+
+
+   @Get('beds/available')
+  getAvailableBeds(
+    @Query('ward_id') wardId?: string,        // กรองเฉพาะวอร์ด
+    @Query('from_ward') fromWard = '1',       // ตั้งแต่วอร์ดนี้ขึ้นไป (ดีฟอลต์ 1)
+    @Query('to_ward') toWard?: string,        // ถึงวอร์ดนี้
+    @Query('limit') limit = '5',
+    @Query('offset') offset = '0',
+  ) {
+    return this.employeeService.getAvailableBeds({
+      wardId: wardId ? Number(wardId) : undefined,
+      fromWard: Number(fromWard),
+      toWard: toWard ? Number(toWard) : undefined,
+      limit: Number(limit),
+      offset: Number(offset),
+    });
   }
 
 

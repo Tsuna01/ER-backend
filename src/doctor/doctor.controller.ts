@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Query  } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
 
 @Controller('doctor')
@@ -21,9 +21,28 @@ export class DoctorController {
     return this.doctorService.createWorkx(data);
   }
 
-  @Get('/api')
-  async findUser() {
-    return this.doctorService.findUser();
+   @Get('api')
+  async search(
+    @Query('name') name?: string,
+    @Query('position') position?: string,
+    @Query('exp') exp?: string,                   // "1"|"2"|"3"|"4"|"5_more"
+    @Query('qual_type') qual_type?: string,       // "bachelor"|"master"|...
+    @Query('page') page = '1',
+    @Query('limit') limit = '50',
+  ) {
+    const p = Math.max(parseInt(page) || 1, 1);
+    const l = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
+    const offset = (p - 1) * l;
+
+    const rows = await this.doctorService.searchStaff({
+      name: name?.trim() || undefined,
+      position: position?.trim() || undefined,
+      exp: exp?.trim() || undefined,
+      qual_type: qual_type?.trim() || undefined,
+      limit: l,
+      offset,
+    });
+    return rows;
   }
 
   @Put('WardForm')

@@ -1,6 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { QueryRunner } from 'typeorm';
+
+type CreateWaitingDto = {
+  patient_id: string;
+  ward_id: string;
+  date_added: string;
+  priority_level: string;
+  status: string;
+};
+
+type SearchParams = {
+  wardId?: number;
+  limit?: number;
+  offset?: number;
+  current?: boolean; // true = ยังนอนอยู่ (actual_dis_date IS NULL)
+};
+
+type BedSearch = {
+  wardId?: number;     // ถ้าใส่ -> กรองเฉพาะวอร์ดนี้
+  fromWard?: number;   // ตั้งแต่วอร์ดนี้ขึ้นไป (ดีฟอลต์ 1)
+  toWard?: number;     // ถึงวอร์ดนี้ (ออปชัน)
+  limit?: number;
+  offset?: number;
+};
+
 
 @Injectable()
 export class EmployeeService {
@@ -53,7 +78,7 @@ export class EmployeeService {
       );
 
       await queryRunner.commitTransaction();
-      return { success: true, patientId};
+      return { success: true, patientId };
     } catch (err) {
       await queryRunner.rollbackTransaction();
       console.error(' Error register patient:', err);
@@ -138,7 +163,7 @@ export class EmployeeService {
         a.purpose,
         p.clinic_no
       FROM patient AS p
-      LEFT JOIN appointment AS a ON p.patient_id = a.patient_id
+      RIGHT JOIN appointment AS a ON p.patient_id = a.patient_id 
       GROUP BY p.patient_id, p.first_name, p.last_name, a.purpose, p.clinic_no
       ORDER BY p.patient_id ASC
     `);
@@ -227,6 +252,246 @@ export class EmployeeService {
       // จะถูก Nest แปลงเป็น 500 ให้เอง
       console.error('🔥 SQL ERROR (showInpatients):', err.message || err);
       throw err;
+    }
+  }
+
+
+
+  async addWaitinglist(data: any) {
+    try {
+      const reslut = this.dataSource.query(`
+        INSERT INTO waiting_list(
+          patient_id,
+          ward_id,
+          date_added,
+          priority_level
+        )VALUES(?,?,?,?)
+        `, [data.patient_id, data.ward_id, data.date_added, data.priority_level])
+
+      return reslut;
+    } catch (err) {
+      console.error('🔥 SQL ERROR (showInpatients):', err);
+      throw err;
+    }
+  }
+
+  async tableWaitingL() {
+    try {
+      const result = await this.dataSource.query(`
+      SELECT 
+        wl.waiting_list_id,
+        wl.patient_id,
+        CONCAT(p.first_name,' ',p.last_name) AS name,
+        wl.ward_id,
+        wl.date_added,
+        wl.priority_level,
+        wl.status
+      FROM waiting_list wl
+      JOIN patient p ON p.patient_id = wl.patient_id
+      WHERE wl.status = 'waiting';
+      `);
+
+      return result;
+    } catch (err) {
+      console.error('🔥 SQL ERROR (showInpatients):', err);
+      throw err;
+    }
+
+  }
+
+  async upTablewaitingL(data: any[]) {
+    for (const row of data) {
+      if (row?.waiting_list_id == null) continue; // กันพลาด
+      await this.dataSource.query(
+        'UPDATE `waiting_list` SET `status` = ? WHERE `waiting_list_id` = ?',
+        [row.status, row.waiting_list_id],
+      );
+    }
+    return { success: true };
+  }
+
+  async AllPatient(){
+    try{
+      const result = await this.dataSource.query(`
+      SELECT
+        p.patient_id,
+        CONCAT(p.first_name,' ',p.last_name) AS name,
+        p.date_registered,
+        p.gender
+      FROM patient p
+      WHERE NOT EXISTS (
+        SELECT 1 FROM appointment a
+        WHERE a.patient_id = p.patient_id
+      )
+      ORDER BY p.patient_id ASC;
+
+      
+      `)
+
+      return result;
+    }catch(err){
+      console.error('🔥 SQL ERROR (showInpatients):', err);
+      throw err;
+    }
+    
+  }
+
+  async AllPatientW(){
+    try{
+      const result = await this.dataSource.query(`
+      SELECT
+        p.patient_id,
+        CONCAT(p.first_name,' ',p.last_name) AS name,
+        p.date_registered,
+        p.gender
+      FROM patient p
+      WHERE NOT EXISTS (
+        SELECT 1 FROM appointment a
+        WHERE a.patient_id = p.patient_id
+      )
+      ORDER BY p.patient_id ASC;
+
+      
+      `)
+
+      return result;
+    }catch(err){
+      console.error('🔥 SQL ERROR (showInpatients):', err);
+      throw err;
+    }
+    
+  }
+
+  async searchInpatients(params: SearchParams) {
+  const { wardId, limit = 50, offset = 0, current = true } = params;
+
+  const qr = this.dataSource.createQueryRunner();
+  await qr.connect();
+
+  try {
+    let sql = `
+      SELECT
+        i.patient_id,
+        CONCAT(p.first_name,' ',p.last_name) AS name,
+        i.date_admitted,
+        i.expected_dis_date,
+        i.bed_id,
+        b.ward_id,
+        w.ward_name
+      FROM inpatient i
+      JOIN patient p ON p.patient_id = i.patient_id
+      JOIN bed     b ON b.bed_id     = i.bed_id
+      JOIN ward    w ON w.ward_id    = b.ward_id
+      WHERE 1=1
+    `;
+
+    const args: any[] = [];
+
+    if (current) {
+      sql += ` AND i.actual_dis_date IS NULL `;
+    }
+
+    // 🔹 กรองเฉพาะเมื่อ wardId > 0 (0 = ทั้งหมด)
+    const wid = typeof wardId === 'string' ? Number(wardId) : wardId;
+    if (Number.isFinite(wid) && wid! > 0) {
+      sql += ` AND b.ward_id = ? `;
+      args.push(wid);
+    }
+
+    const safeLimit = Math.min(Math.max(limit ?? 50, 1), 200);
+    const safeOffset = Math.max(offset ?? 0, 0);
+
+    sql += ` ORDER BY i.date_admitted DESC, i.patient_id DESC `;
+    sql += ` LIMIT ? OFFSET ? `;
+    args.push(safeLimit, safeOffset);
+
+    const rows = await qr.query(sql, args);
+    return rows;
+  } finally {
+    await qr.release();
+  }
+}
+
+  async showBedLimit(){
+    const result = this.dataSource.query(`
+      
+      `)
+  }
+
+  async tableBed() {
+    try {
+      const result = await this.dataSource.query(`
+      SELECT 
+        wl.waiting_list_id,
+        wl.patient_id,
+        CONCAT(p.first_name,' ',p.last_name) AS name,
+        wl.ward_id,
+        wl.date_added,
+        wl.priority_level,
+        wl.status
+      FROM waiting_list wl
+      JOIN patient p ON p.patient_id = wl.patient_id
+      WHERE wl.status = 'admitted';
+      `);
+
+      return result;
+    } catch (err) {
+      console.error('🔥 SQL ERROR ', err);
+      throw err;
+    }
+
+  }
+
+
+  async getAvailableBeds(params: BedSearch) {
+    const {
+      wardId,
+      fromWard = 1,
+      toWard,
+      limit = 200,
+      offset = 0,
+    } = params;
+
+    const qr: QueryRunner = this.dataSource.createQueryRunner();
+    await qr.connect();
+
+    try {
+      let sql = `
+        SELECT
+          b.bed_id,
+          b.ward_id,
+          b.status
+        FROM bed b
+        JOIN ward w ON w.ward_id = b.ward_id
+        WHERE b.status = 'available'
+      `;
+      const args: any[] = [];
+
+      if (wardId && wardId > 0) {
+        sql += ` AND b.ward_id = ?`;
+        args.push(wardId);
+      } else {
+        // ไม่มี wardId ระบุ -> ใช้ช่วงตั้งแต่ fromWard (ดีฟอลต์ = 1)
+        if (Number.isFinite(fromWard)) {
+          sql += ` AND b.ward_id >= ?`;
+          args.push(fromWard);
+        }
+        if (Number.isFinite(toWard)) {
+          sql += ` AND b.ward_id <= ?`;
+          args.push(toWard);
+        }
+      }
+
+      const safeLimit = Math.min(Math.max(limit, 1), 500);
+      const safeOffset = Math.max(offset, 0);
+
+      sql += ` ORDER BY b.ward_id, b.bed_id`;
+      sql += ` LIMIT ? OFFSET ?`;
+      args.push(safeLimit, safeOffset);
+
+      return await qr.query(sql, args);
+    } finally {
+      await qr.release();
     }
   }
 

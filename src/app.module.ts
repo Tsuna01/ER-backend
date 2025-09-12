@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { EmployeeModule } from './employee/employee.module';
 import { MedicationModule } from './medication/medication.module';
+import { SupplierModule } from './supplier/supplier.module';
+import { PatientModule } from './patient/patient.module';
 
 
 
@@ -19,7 +21,7 @@ import { MedicationModule } from './medication/medication.module';
     }),
     TypeOrmModule.forRoot({
       type: 'mysql', // กำหนดประเภทฐานข้อมูลเป็น MySQL
-      host: 'localhost', // หรือชื่อ service ของ Docker container เช่น 'mysql-db'
+      host: '127.0.0.1', // หรือชื่อ service ของ Docker container เช่น 'mysql-db'
       port: 3306, // พอร์ตของฐานข้อมูล
       username: 'root', // ชื่อผู้ใช้
       password: 'password1', // รหัสผ่าน
@@ -32,6 +34,8 @@ import { MedicationModule } from './medication/medication.module';
     DoctorModule,
     EmployeeModule,
     MedicationModule,
+    SupplierModule,
+    PatientModule,
 
     
   ],
