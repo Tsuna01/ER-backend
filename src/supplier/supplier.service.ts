@@ -61,4 +61,57 @@ export class SupplierService {
       await queryRunner.release();
     }
   }
+
+  async tableRequisition() {
+    try{
+      const result = await this.dataSource.query(`
+      SELECT t.item_id as id, 
+      t.name, 
+      r.ward_id,
+      r.requested_by,
+      r.approved_by,
+      r.date_ordered
+      FROM item as t , requisition as r,requisition_item as ri
+      WHERE t.item_id = ri.item_id AND r.requisition_id = ri.requisition_id
+      ORDER BY r.date_ordered DESC
+     
+    `);
+    return result;
+    }catch(err){
+      console.log('ดึงข้อมูลไม่ได้ ',err);
+    }
+  }
+
+  async tableItem() {
+    try{
+      const result = await this.dataSource.query(`
+      SELECT item_id as id, 
+      name, 
+      item_type,
+      quantity_in_stock,
+      cost_per_unit
+      FROM item 
+    `);
+    return result;
+    }catch(err){
+      console.log('ดึงข้อมูลไม่ได้ ',err);
+    }
+  }
+
+  async tablePharma() {
+    try{
+      const result = await this.dataSource.query(`
+      SELECT item_id as id, 
+      name, 
+      item_type,
+      quantity_in_stock,
+      cost_per_unit
+      FROM item 
+      WHERE item_type = 'pharmaceutical'
+    `);
+    return result;
+    }catch(err){
+      console.log('ดึงข้อมูลไม่ได้ ',err);
+    }
+  }
 }

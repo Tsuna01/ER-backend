@@ -15,4 +15,19 @@ export class SupplierController {
   async create(@Body() body: any) {
     return this.supplierService.createRequisition(body);
   }
+
+  @Get('/NumericInput/api')
+  async findAll() {
+    return this.supplierService.tableRequisition();
+  }
+
+  @Get('/NumericInput/info/api')
+  async tableItems() {
+    return this.supplierService.tableItem();
+  }
+  
+  @Get('/NumericInput/pharma/api')
+  async tablePharma() {
+    return this.supplierService.tablePharma();
+  }
 }

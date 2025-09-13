@@ -319,10 +319,11 @@ export class EmployeeService {
         p.date_registered,
         p.gender
       FROM patient p
-      WHERE NOT EXISTS (
-        SELECT 1 FROM appointment a
-        WHERE a.patient_id = p.patient_id
+      WHERE p.patient_id NOT IN (SELECT DISTINCT patient_id FROM inpatient
+      ) AND p.patient_id NOT IN (SELECT DISTINCT patient_id FROM waiting_list 
+      ) AND p.patient_id NOT IN (SELECT DISTINCT patient_id FROM appointment
       )
+
       ORDER BY p.patient_id ASC;
 
       
@@ -345,9 +346,8 @@ export class EmployeeService {
         p.date_registered,
         p.gender
       FROM patient p
-      WHERE NOT EXISTS (
-        SELECT 1 FROM appointment a
-        WHERE a.patient_id = p.patient_id
+      WHERE p.patient_id NOT IN (
+        SELECT DISTINCT patient_id FROM inpatient
       )
       ORDER BY p.patient_id ASC;
 
@@ -431,7 +431,8 @@ export class EmployeeService {
         wl.status
       FROM waiting_list wl
       JOIN patient p ON p.patient_id = wl.patient_id
-      WHERE wl.status = 'admitted';
+      WHERE wl.status = 'admitted' and wl.patient_id NOT IN (SELECT DISTINCT patient_id FROM inpatient)
+      ORDER BY wl.date_added ASC;
       `);
 
       return result;
@@ -493,6 +494,74 @@ export class EmployeeService {
     } finally {
       await qr.release();
     }
+  }
+
+  async findById(id: number) {
+    // -- patient + local_doctor
+    const [row] = await this.dataSource.query(
+      `
+      SELECT
+        p.patient_id      AS id,
+        p.first_name      AS firstName,
+        p.last_name       AS lastName,
+        p.date_of_birth   AS dateOfBirth,
+        p.gender          AS gender,
+        p.address_line    AS address,
+        p.phone           AS phone,
+        p.date_registered AS dateRegistered,
+        p.clinic_no       AS clinicNo,
+
+        ld.clinic_no      AS ldClinicNo,
+        ld.doctor_name    AS doctorName,
+        ld.lo_last_name   AS doctorLastName,
+        ld.lo_address_line AS doctorAddress,
+        ld.lo_phone        AS doctorPhone
+      FROM patient p
+      LEFT JOIN local_doctor ld ON ld.clinic_no = p.clinic_no
+      WHERE p.patient_id = ?
+      `,
+      [id],
+    );
+
+    if (!row) return null;
+
+    // -- next_of_kin (อาจมีหลายคน)
+    const nextOfKin = await this.dataSource.query(
+      `
+      SELECT
+        kin_id           AS id,
+        kin_name         AS name,
+        kin_relationship AS relationship,
+        kin_address_line AS address,
+        kin_phone        AS phone
+      FROM next_of_kin
+      WHERE patient_id = ?
+      ORDER BY kin_id ASC
+      `,
+      [id],
+    );
+
+    // shape ข้อมูลสำหรับหน้า Infopatient
+    const localDoctor = {
+      clinicNo: row.ldClinicNo ?? row.clinicNo ?? null,
+      name: [row.doctorName, row.doctorLastName].filter(Boolean).join(' ') || null,
+      address: row.doctorAddress ?? null,
+      phone: row.doctorPhone ?? null,
+    };
+
+    return {
+      id: row.id,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      dateOfBirth: row.dateOfBirth,
+      gender: row.gender,
+      address: row.address,
+      phone: row.phone,
+      dateRegistered: row.dateRegistered,
+      clinicNo: row.clinicNo,
+      nextOfKin,
+      localDoctor,
+    };
   }
 
 

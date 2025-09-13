@@ -215,11 +215,11 @@ export class DoctorService {
   }
 
   async searchStaff(filters: SearchFilters) {
-  const qr: QueryRunner = this.dataSource.createQueryRunner();
-  await qr.connect();
+    const qr: QueryRunner = this.dataSource.createQueryRunner();
+    await qr.connect();
 
-  try {
-    let sql = `
+    try {
+      let sql = `
       SELECT
         s.staff_id,
         CONCAT(s.first_name, ' ', s.last_name) AS name,
@@ -229,35 +229,35 @@ export class DoctorService {
       LEFT JOIN work_experience w ON w.staff_id = s.staff_id
     `;
 
-    const where: string[] = [];
-    const having: string[] = [];
-    const params: any[] = [];
+      const where: string[] = [];
+      const having: string[] = [];
+      const params: any[] = [];
 
-    // ✅ เงื่อนไขชื่อ
-    if (filters.name) {
-      where.push(`CONCAT(s.first_name, ' ', s.last_name) LIKE ?`);
-      params.push(`%${filters.name}%`);
-    }
-
-    if (filters.position) {
-      where.push(`s.position = ?`);
-      params.push(filters.position);
-    }
-
-    // ✅ เงื่อนไข exp ใช้ HAVING เพราะเป็นค่าที่คำนวณ (aggregate)
-    if (filters.exp) {
-      if (filters.exp === '5_more') {
-        having.push(`experience_years >= ?`);
-        params.push(5);
-      } else {
-        having.push(`experience_years = ?`);
-        params.push(Number(filters.exp));
+      // ✅ เงื่อนไขชื่อ
+      if (filters.name) {
+        where.push(`CONCAT(s.first_name, ' ', s.last_name) LIKE ?`);
+        params.push(`%${filters.name}%`);
       }
-    }
 
-    // ✅ เงื่อนไขวุฒิ
-    if (filters.qual_type) {
-      where.push(`
+      if (filters.position) {
+        where.push(`s.position = ?`);
+        params.push(filters.position);
+      }
+
+      // ✅ เงื่อนไข exp ใช้ HAVING เพราะเป็นค่าที่คำนวณ (aggregate)
+      if (filters.exp) {
+        if (filters.exp === '5_more') {
+          having.push(`experience_years >= ?`);
+          params.push(5);
+        } else {
+          having.push(`experience_years = ?`);
+          params.push(Number(filters.exp));
+        }
+      }
+
+      // ✅ เงื่อนไขวุฒิ
+      if (filters.qual_type) {
+        where.push(`
         EXISTS (
           SELECT 1
           FROM qualification q
@@ -265,34 +265,84 @@ export class DoctorService {
             AND q.qual_type = ?
         )
       `);
-      params.push(filters.qual_type);
-    }
+        params.push(filters.qual_type);
+      }
 
-    if (where.length) {
-      sql += ` WHERE ` + where.join(' AND ');
-    }
+      if (where.length) {
+        sql += ` WHERE ` + where.join(' AND ');
+      }
 
-    sql += `
+      sql += `
       GROUP BY s.staff_id
     `;
 
-    if (having.length) {
-      sql += ` HAVING ` + having.join(' AND ');
+      if (having.length) {
+        sql += ` HAVING ` + having.join(' AND ');
+      }
+
+      sql += ` ORDER BY s.staff_id DESC `;
+
+      const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+      const offset = Math.max(filters.offset ?? 0, 0);
+      sql += ` LIMIT ? OFFSET ? `;
+      params.push(limit, offset);
+
+      const rows = await qr.query(sql, params);
+      return rows;
+    } finally {
+      await qr.release();
     }
-
-    sql += ` ORDER BY s.staff_id DESC `;
-
-    const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
-    const offset = Math.max(filters.offset ?? 0, 0);
-    sql += ` LIMIT ? OFFSET ? `;
-    params.push(limit, offset);
-
-    const rows = await qr.query(sql, params);
-    return rows;
-  } finally {
-    await qr.release();
   }
-}
+
+  async findById(id: number) {
+    // ---- staff (หัวเอกสาร) ----
+    const [staff] = await this.dataSource.query(
+      `SELECT
+        s.staff_id     AS id,
+        s.first_name   AS firstName,
+        s.last_name    AS lastName,
+        s.position     AS \`position\`,
+        s.gender       AS gender,
+        s.phone        AS phone,
+        s.address_line AS address
+     FROM staff s
+     WHERE s.staff_id = ?`,
+      [id],
+    );
+    if (!staff) return null;
+
+    // ---- qualification -> eduHistory ----
+    const eduHistory = await this.dataSource.query(
+      `SELECT
+        q.qual_type    AS degree,
+        q.institution  AS institute,
+        q.qual_date    AS \`year\`
+     FROM qualification q
+     WHERE q.staff_id = ?
+     ORDER BY q.qual_date DESC`,
+      [id],
+    );
+
+    // ---- work_experience -> workHistory ----
+    const workHistory = await this.dataSource.query(
+      `SELECT
+        w.position     AS title,
+        w.organization AS organization,
+        w.start_date   AS startDate,
+        w.end_date     AS endDate
+     FROM work_experience w
+     WHERE w.staff_id = ?
+     ORDER BY w.start_date DESC`,
+      [id],
+    );
+
+    return {
+      ...staff,
+      eduHistory,
+      workHistory,
+    };
+  }
+
 
 
 

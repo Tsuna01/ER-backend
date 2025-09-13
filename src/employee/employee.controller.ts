@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, Patch,Put} from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Patch,Put ,Param,NotFoundException} from '@nestjs/common';
 import { EmployeeService } from './employee.service';
 
 
@@ -91,6 +91,13 @@ export class EmployeeController {
       limit: Number(limit),
       offset: Number(offset),
     });
+  }
+
+  @Get('Infopatient/:id')
+  async getPatient(@Param('id') id: string) {
+    const data = await this.employeeService.findById(Number(id));
+    if (!data) throw new NotFoundException('ไม่พบผู้ป่วย');
+    return data;
   }
 
 
