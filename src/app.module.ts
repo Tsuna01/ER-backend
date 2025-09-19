@@ -3,12 +3,12 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { EmployeeModule } from './employee/employee.module';
 import { MedicationModule } from './medication/medication.module';
 import { SupplierModule } from './supplier/supplier.module';
 import { PatientModule } from './patient/patient.module';
+import { AuthModule } from './auth/auth.module';
 
 
 
@@ -30,6 +30,7 @@ import { PatientModule } from './patient/patient.module';
       synchronize: false, // ต้องเป็น false เมื่อไม่มี entities
       autoLoadEntities: false,
     }),
+    ConfigModule.forRoot({ isGlobal: true }),
     AuthModule,
     DoctorModule,
     EmployeeModule,
